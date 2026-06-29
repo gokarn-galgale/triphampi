@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Hampi Monsoon Explorer - Mobile Guide</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js Map Assets -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            950: '#09090b',
+                        },
+                        emerald: {
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        },
+                        amber: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #09090b;
+            overscroll-behavior-y: contain;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .serif-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Glassmorphism Defaults */
+        .glass-panel {
+            background: rgba(18, 18, 22, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(16, 185, 129, 0.12);
+        }
+
+        .glass-card {
+            background: rgba(18, 18, 22, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+        }
+
+        .glass-panel-heavy {
+            background: rgba(2, 20, 16, 0.96);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(16, 185, 129, 0.22);
+        }
+
+        .active-tab {
+            color: #fbbf24 !important;
+            transform: translateY(-2px);
+        }
+
+        /* Safe margins for devices with bottom bars */
+        .safe-bottom {
+            padding-bottom: cubic-bezier(0.1, 0.76, 0.55, 0.94);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Custom Leaflet Dark Mode styling */
+        .leaflet-container {
+            background-color: #020d09 !important;
+        }
+        .leaflet-bar {
+            border: 1px solid rgba(16, 185, 129, 0.2) !important;
+            box-shadow: none !important;
+        }
+        .leaflet-bar a {
+            background-color: #121216 !important;
+            color: #34d399 !important;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.1) !important;
+        }
+        .leaflet-bar a:hover {
+            background-color: #064e3b !important;
+            color: #ffffff !important;
+        }
+
+        /* Slide-up animation config */
+        @keyframes slideUp {
+            from { transform: translateY(8px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="text-zinc-100 h-full w-full flex flex-col overflow-hidden select-none">
+
+    <!-- Ambient top glow -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
+
+    <!-- 1. COMPACT TOP HEADER -->
+    <header class="glass-panel border-b border-emerald-950 h-14 shrink-0 z-[1001] flex items-center px-4 justify-between relative">
+        <div class="flex items-center gap-2">
+            <span class="text-xl">🕉️</span>
+            <div>
+                <h1 class="serif-font font-black text-sm tracking-wide text-white leading-none">Hampi Monsoon Guide</h1>
+                <span class="text-[9px] text-emerald-400 font-bold uppercase tracking-widest">July 1-2, 2026</span>
+            </div>
+        </div>
+        <!-- Status Indicator -->
+        <div class="flex items-center gap-1.5 bg-emerald-950/80 border border-emerald-900 px-2.5 py-1 rounded-full">
+            <span id="rainStatusPulse" class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+            <span id="rainStatusLabel" class="text-[9px] font-extrabold uppercase text-white tracking-wider">Simulated Rain: ON</span>
+        </div>
+    </header>
+
+    <!-- 2. SCROLLABLE SCREEN VIEWFINDER -->
+    <main class="flex-grow overflow-hidden relative z-10">
+
+        <!-- ==================== SCREEN 1: SCHEDULE TIMELINE ==================== -->
+        <div id="screenTimeline" class="h-full w-full flex flex-col p-3 gap-3">
+            
+            <!-- Quick Day Selection Slider -->
+            <div class="flex bg-zinc-900/60 p-1 border border-zinc-800/80 rounded-xl shrink-0">
+                <button id="day1TabBtn" class="flex-1 text-center py-2 rounded-lg text-xs font-bold transition-all duration-300 bg-emerald-800 text-white shadow-md">
+                    🌅 July 1: Anegundi & Peak
+                </button>
+                <button id="day2TabBtn" class="flex-1 text-center py-2 rounded-lg text-xs font-bold transition-all duration-300 text-zinc-400 hover:text-white">
+                    🏛️ July 2: Palace Ruins
+                </button>
+            </div>
+
+            <!-- Scrollable Timeline Cards -->
+            <div class="flex-grow overflow-y-auto pr-1 space-y-2.5 pb-20 no-scrollbar" id="scheduleListContainer">
+                <!-- Cards get injected here dynamically -->
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN 2: STEADY FULL ROUTE MAP ==================== -->
+        <div id="screenMap" class="h-full w-full hidden flex-col relative">
+            
+            <!-- Floating Day Selection Tab Overlay directly on Map -->
+            <div class="absolute top-4 left-4 right-24 flex bg-zinc-950/90 border border-emerald-500/20 rounded-xl p-1 shadow-lg z-[1000] backdrop-blur-md">
+                <button id="mapDayAllBtn" class="flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all bg-emerald-800 text-white cursor-pointer">
+                    📍 All
+                </button>
+                <button id="mapDay1Btn" class="flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all text-zinc-400 hover:text-white cursor-pointer">
+                    🌅 Day 1
+                </button>
+                <button id="mapDay2Btn" class="flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all text-zinc-400 hover:text-white cursor-pointer">
+                    🏛️ Day 2
+                </button>
+            </div>
+
+            <!-- Floating Google Map Type Selector (Satellite/Road/Terrain) -->
+            <div class="absolute top-4 right-4 flex flex-col bg-zinc-950/90 border border-emerald-500/20 rounded-xl p-1 shadow-lg z-[1000] backdrop-blur-md">
+                <button id="mapTypeRoadBtn" class="px-2 py-1 rounded text-[9px] font-bold bg-emerald-800 text-white cursor-pointer mb-1 text-left flex items-center gap-1">
+                    🗺️ Google Road
+                </button>
+                <button id="mapTypeSatelliteBtn" class="px-2 py-1 rounded text-[9px] font-bold text-zinc-400 hover:text-white cursor-pointer mb-1 text-left flex items-center gap-1">
+                    🛰️ Satellite
+                </button>
+                <button id="mapTypeTerrainBtn" class="px-2 py-1 rounded text-[9px] font-bold text-zinc-400 hover:text-white cursor-pointer text-left flex items-center gap-1">
+                    ⛰️ Terrain
+                </button>
+            </div>
+
+            <!-- Full View Map Canvas -->
+            <div class="w-full h-full relative" id="mapCanvasContainer">
+                <div id="hampiMap" class="w-full h-full"></div>
+            </div>
+
+            <!-- Sticky Active Landmark HUD Card (Bottom of Map Mode) -->
+            <div class="absolute bottom-20 inset-x-3 bg-zinc-950/95 border border-emerald-500/20 rounded-2xl p-3 shadow-2xl backdrop-blur-md z-[1000]">
+                <div class="flex items-center justify-between gap-2 border-b border-zinc-800 pb-2 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="hudIcon" class="text-xl p-1 bg-emerald-950 rounded-lg">🚂</span>
+                        <div>
+                            <h3 id="hudTitle" class="text-xs font-bold text-white">Hospet Junction Arrival</h3>
+                            <span id="hudTime" class="text-[9px] text-amber-400 font-extrabold">June 30, 10:00 PM</span>
+                        </div>
+                    </div>
+                    <span id="hudDistance" class="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded-full font-bold">0 km</span>
+                </div>
+                
+                <p id="hudDesc" class="text-[10px] text-zinc-300 leading-normal line-clamp-2">Your journey starts as you detrain at Hospet Junction under a cool monsoon night wind.</p>
+                
+                <!-- Micro controls inside Map Panel -->
+                <div class="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-zinc-800/50">
+                    <button id="prevStopBtn" class="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 py-1.5 rounded-lg text-[9px] font-bold text-zinc-300 flex items-center justify-center gap-1">
+                        ◀ Previous
+                    </button>
+                    <button id="nextStopBtn" class="flex-grow [flex-grow:2] bg-emerald-800 hover:bg-emerald-700 py-1.5 rounded-lg text-[9px] font-bold text-white flex items-center justify-center gap-1 shadow-md shadow-emerald-900/30">
+                        Next Stop ▶
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCREEN 3: TRAVEL KIT (BUDGET, PACKING & RISKS) ==================== -->
+        <div id="screenKit" class="h-full w-full hidden flex-col p-3 gap-3 overflow-y-auto pb-24">
+            
+            <!-- Monsoon Live Risk Index Card -->
+            <div class="glass-card rounded-xl p-3.5 border border-amber-500/20 flex flex-col gap-2.5 shadow-md">
+                <div class="flex items-center gap-2 border-b border-zinc-800 pb-2">
+                    <span class="text-lg">⚠️</span>
+                    <div>
+                        <h3 class="text-xs font-extrabold text-white">July Monsoon Risk Scorecard</h3>
+                        <p class="text-[9px] text-zinc-400">Dynamic hazard index monitored from TB Dam release rates</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2.5 text-center">
+                    <div class="bg-zinc-950/80 rounded-lg p-2 border border-zinc-800">
+                        <span class="text-[8px] uppercase tracking-wider block text-zinc-400 font-bold">Rock Slickness</span>
+                        <span id="riskSlickness" class="font-extrabold text-xs text-amber-400 block mt-1">HIGH (8/10)</span>
+                    </div>
+                    <div class="bg-zinc-950/80 rounded-lg p-2 border border-zinc-800">
+                        <span class="text-[8px] uppercase tracking-wider block text-zinc-400 font-bold">TB Dam Outflow</span>
+                        <span id="riskDam" class="font-extrabold text-xs text-amber-400 block mt-1">Moderate</span>
+                    </div>
+                    <div class="bg-zinc-950/80 rounded-lg p-2 border border-zinc-800">
+                        <span class="text-[8px] uppercase tracking-wider block text-zinc-400 font-bold">Ferry Access</span>
+                        <span id="riskFerry" class="font-extrabold text-xs text-red-400 block mt-1">CLOSED</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interative Packing Checklist Card -->
+            <div class="glass-card rounded-xl p-3.5 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🎒</span>
+                        <div>
+                            <h3 class="text-xs font-extrabold text-white">July Packing Checklist</h3>
+                            <p class="text-[9px] text-zinc-400">Essential items for wet granite trekking</p>
+                        </div>
+                    </div>
+                    <!-- Progress text -->
+                    <span id="packingWheelText" class="text-[10px] font-black text-emerald-400 bg-emerald-950 border border-emerald-900 px-2 py-0.5 rounded-full">0% Done</span>
+                </div>
+                
+                <!-- Checklist Items -->
+                <div class="grid grid-cols-1 gap-2 text-xs">
+                    <label class="flex items-center gap-3 bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-900 cursor-pointer">
+                        <input type="checkbox" class="pack-item w-4.5 h-4.5 rounded accent-emerald-500 cursor-pointer">
+                        <span>🌦️ High-durability rain poncho or umbrella</span>
+                    </label>
+                    <label class="flex items-center gap-3 bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-900 cursor-pointer">
+                        <input type="checkbox" class="pack-item w-4.5 h-4.5 rounded accent-emerald-500 cursor-pointer">
+                        <span>🥾 Slip-resistant sports hiking shoes</span>
+                    </label>
+                    <label class="flex items-center gap-3 bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-900 cursor-pointer">
+                        <input type="checkbox" class="pack-item w-4.5 h-4.5 rounded accent-emerald-500 cursor-pointer">
+                        <span>🧴 Mosquito spray (Highly active after July showers)</span>
+                    </label>
+                    <label class="flex items-center gap-3 bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-900 cursor-pointer">
+                        <input type="checkbox" class="pack-item w-4.5 h-4.5 rounded accent-emerald-500 cursor-pointer">
+                        <span>🔋 Water-sealed heavy duty power bank</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Mobile Quick Budget Slider Tool -->
+            <div class="glass-card rounded-xl p-3.5 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">💸</span>
+                        <div>
+                            <h3 class="text-xs font-extrabold text-white">Quick Budget Estimator</h3>
+                            <p class="text-[9px] text-zinc-400">Estimate your July transit & food choices</p>
+                        </div>
+                    </div>
+                    <span id="estimatedTotal" class="text-xs font-black text-amber-400 shadow-neon-gold">₹0</span>
+                </div>
+                <div class="space-y-2.5 text-xs">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[9px] uppercase tracking-wider font-bold text-zinc-400">Local Transport Type</span>
+                        <select id="calcTransport" class="w-full bg-zinc-950/80 border border-zinc-800 rounded p-1.5 text-white outline-none">
+                            <option value="2500" selected>Dedicated Auto-Rickshaw (₹2,500)</option>
+                            <option value="6000">Private Sedan Cab (₹6,000)</option>
+                            <option value="1200">Budget Scooter (₹1,200)</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[9px] uppercase tracking-wider font-bold text-zinc-400">Dining Style</span>
+                        <select id="calcDining" class="w-full bg-zinc-950/80 border border-zinc-800 rounded p-1.5 text-white outline-none">
+                            <option value="1500" selected>Heritage Cafes & Thalis (₹1,500)</option>
+                            <option value="3500">Premium Dine-ins (₹3,500)</option>
+                            <option value="800">Budget Street Thalis (₹800)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- ==================== SCREEN 4: ✨ AI TOUR GURU & CHATBOT ==================== -->
+        <div id="screenAi" class="h-full w-full hidden flex-col p-3 gap-3">
+            <div class="glass-card rounded-xl p-3 flex flex-col flex-grow overflow-hidden border border-amber-500/25 relative shadow-lg">
+                <!-- Chat Screen Header info -->
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2.5 mb-2.5 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">✨</span>
+                        <div>
+                            <h3 class="text-xs font-extrabold text-white">Gemini Hampi AI Travel Guru</h3>
+                            <span class="text-[9px] text-emerald-400 font-bold block">Grounded in Google Search</span>
+                        </div>
+                    </div>
+                    <button id="clearAiChatBtn" class="text-[9px] text-zinc-400 hover:text-zinc-200 border border-zinc-800 px-2 py-1 rounded-md transition cursor-pointer">Clear Chat</button>
+                </div>
+
+                <!-- Chat message history viewport -->
+                <div class="flex-grow overflow-y-auto space-y-3.5 pr-1 no-scrollbar text-xs pb-4" id="aiChatViewport">
+                    <!-- Default welcome message bubble -->
+                    <div class="flex gap-2.5 items-start">
+                        <div class="p-1.5 bg-emerald-950 rounded-lg text-sm shrink-0 border border-emerald-900 select-none">✨</div>
+                        <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-r-xl rounded-bl-xl p-3 max-w-[85%] text-zinc-200 leading-relaxed shadow-sm">
+                            Greetings traveler! I am your AI Hampi Guru. I am powered by Gemini and connected directly to Google Search to provide verified mythological contexts, ancient architectural secrets, and localized travel advice. 
+                            <br><br>
+                            Tap one of the quick prompts below to begin!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Typing / Processing Indicator -->
+                <div id="aiTypingIndicator" class="flex gap-2 items-center text-[10px] text-zinc-400 mb-2 px-3.5 hidden animate-pulse shrink-0 select-none">
+                    <span>✨ Gemini is thinking & searching Hampi logs...</span>
+                </div>
+
+                <!-- Dynamic Preconfigured Prompt Pills -->
+                <div class="flex gap-1.5 overflow-x-auto pb-2 shrink-0 no-scrollbar select-none">
+                    <button class="ai-prompt-pill bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-emerald-400 rounded-lg px-2.5 py-1.5 text-[9.5px] font-bold whitespace-nowrap shrink-0 transition" data-prompt="Tell me a mystical story about Lord Hanuman and the birthplace of Anjanadri.">
+                        ✨ Anjanadri Story
+                    </button>
+                    <button class="ai-prompt-pill bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-emerald-400 rounded-lg px-2.5 py-1.5 text-[9.5px] font-bold whitespace-nowrap shrink-0 transition" data-prompt="What are some alternative wet weather rain shelter plans near Vittala temple?">
+                        ✨ Wet Rain Hacks
+                    </button>
+                    <button class="ai-prompt-pill bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-emerald-400 rounded-lg px-2.5 py-1.5 text-[9.5px] font-bold whitespace-nowrap shrink-0 transition" data-prompt="Explain the acoustic engineering and musical pillars of Vijaya Vittala temple.">
+                        ✨ Musical Columns Secret
+                    </button>
+                </div>
+
+                <!-- Live Message prompt input field -->
+                <div class="flex gap-2 border-t border-zinc-800/80 pt-2 shrink-0">
+                    <input type="text" id="aiChatPromptField" placeholder="Ask anything about Hampi myths or history..." class="flex-grow bg-zinc-950/70 border border-zinc-800 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 outline-none transition">
+                    <button id="aiSendMessageBtn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10.5px] font-bold px-3 py-2 rounded-xl transition shadow">
+                        ✨ Send
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 3. DETAILED OVERLAY INFO WINDOW -->
+    <div id="infoModal" class="fixed inset-x-0 bottom-0 bg-zinc-950 border-t border-emerald-500/25 rounded-t-2xl z-[9999] p-4 shadow-2xl transition-all duration-300 transform translate-y-full hidden flex flex-col max-h-[85vh]">
+        
+        <!-- Drag Handle Indicator -->
+        <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-3 shrink-0"></div>
+        
+        <!-- Header Info segment -->
+        <div class="flex items-start gap-3.5 mb-3.5 shrink-0">
+            <div id="modalIcon" class="p-2 bg-emerald-950 rounded-xl text-xl border border-emerald-900 shadow-neon-glow shrink-0">🏛️</div>
+            <div>
+                <span id="modalCategory" class="text-[8px] uppercase tracking-wider font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">Category</span>
+                <h3 id="modalTitle" class="serif-font text-base font-bold text-white mt-1 leading-tight">Vittala Temple</h3>
+                <p id="modalTime" class="text-[9px] text-emerald-400 font-semibold mt-0.5">Location details • 09:00 AM</p>
+            </div>
+        </div>
+
+        <!-- Segment Sub-Tabs -->
+        <div class="flex border-b border-zinc-800/80 bg-zinc-900/40 p-0.5 rounded-lg mb-3 shrink-0 text-center text-[10px] font-bold">
+            <button id="modalTabAttractions" class="flex-1 py-2 rounded-md bg-emerald-800 text-white transition">
+                🎯 Attractions
+            </button>
+            <button id="modalTabHistory" class="flex-1 py-2 rounded-md text-zinc-400 hover:text-white transition">
+                📜 History
+            </button>
+            <button id="modalTabTips" class="flex-1 py-2 rounded-md text-zinc-400 hover:text-white transition">
+                💡 Practical / Rain
+            </button>
+        </div>
+        
+        <!-- Scrollable Tab Content Container -->
+        <div class="flex-grow overflow-y-auto no-scrollbar space-y-3.5 text-xs pb-4">
+            
+            <!-- PANEL 1: WHAT TO SEE (ATTRACTIONS) -->
+            <div id="modalPanelAttractions" class="space-y-3">
+                <h4 class="text-[9px] uppercase font-black text-emerald-400 tracking-wider">Key Highlights To Spot</h4>
+                <ul id="modalAttractionsList" class="space-y-2 list-disc list-inside text-zinc-300 pl-1 leading-relaxed">
+                    <!-- Dynamic attractions array list -->
+                </ul>
+            </div>
+
+            <!-- PANEL 2: DETAILED SYSTEM HISTORY -->
+            <div id="modalPanelHistory" class="space-y-3 hidden">
+                <h4 class="text-[9px] uppercase font-black text-emerald-400 tracking-wider">Empire Chronicles & Origins</h4>
+                <p id="modalHistoryText" class="text-zinc-300 leading-relaxed pl-1">Historic narration context...</p>
+            </div>
+
+            <!-- PANEL 3: MONSOON HACKS & TIPS -->
+            <div id="modalPanelTips" class="space-y-3 hidden">
+                <div class="bg-zinc-900/60 rounded-xl p-2.5 border border-zinc-800 flex gap-2">
+                    <span class="text-base shrink-0">📸</span>
+                    <div>
+                        <span class="font-extrabold text-[9px] text-amber-300 block uppercase tracking-wider leading-none">Photo Angle & Tip</span>
+                        <p id="modalPhotoSpot" class="text-zinc-300 mt-1 leading-normal">Photography suggestions...</p>
+                    </div>
+                </div>
+                <div class="bg-amber-500/10 rounded-xl p-2.5 border border-amber-500/20 flex gap-2">
+                    <span class="text-base shrink-0">💡</span>
+                    <div>
+                        <span class="font-extrabold text-[9px] text-amber-400 block uppercase tracking-wider leading-none">Monsoon Safety Hack</span>
+                        <p id="modalHack" class="text-zinc-300 mt-1 leading-normal">Tip specifics...</p>
+                    </div>
+                </div>
+                <div class="bg-zinc-900/40 p-2.5 rounded-xl border border-zinc-800 text-[10px] text-zinc-400">
+                    <span class="font-bold text-zinc-300 block mb-0.5">⏱️ Optimal Visit Duration:</span>
+                    <span id="modalDurationText">Approx. 2 hours recommended.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Closing bottom actions -->
+        <div class="mt-auto pt-3 border-t border-zinc-800/80 shrink-0">
+            <button id="modalActionBtn" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl transition text-[11px] shadow-neon-glow">Close Details</button>
+        </div>
+    </div>
+
+    <!-- 4. NAVIGATION BAR -->
+    <nav class="glass-card border-t border-emerald-950 h-16 shrink-0 z-[1001] flex items-center px-6 safe-bottom">
+        <div class="w-full flex items-center justify-between text-zinc-400">
+            <!-- Tab 1: Schedule -->
+            <button id="navTabTimeline" class="flex-grow flex flex-col items-center gap-1 text-[10px] font-bold active-tab">
+                <span class="text-lg">📅</span>
+                <span>Itinerary</span>
+            </button>
+            <!-- Tab 2: Map -->
+            <button id="navTabMap" class="flex-grow flex flex-col items-center gap-1 text-[10px] font-bold">
+                <span class="text-lg">🗺️</span>
+                <span>Route Map</span>
+            </button>
+            <!-- Tab 3: Kit -->
+            <button id="navTabKit" class="flex-grow flex flex-col items-center gap-1 text-[10px] font-bold">
+                <span class="text-lg">🎒</span>
+                <span>Travel Kit</span>
+            </button>
+            <!-- Tab 4: ✨ AI Guide -->
+            <button id="navTabAi" class="flex-grow flex flex-col items-center gap-1 text-[10px] font-bold">
+                <span class="text-lg">✨</span>
+                <span>Hampi AI</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- INTERACTIVE APP LOGIC SCRIPT -->
+    <script>
+        // --- TRIP TIMELINE DATA WITH REAL GPS COORDINATES & EXPANDED RICH DETAILS ---
+        const itinerary = [
+            {
+                id: 0,
+                day: 0,
+                title: "Hospet Junction Arrival",
+                time: "10:00 PM (June 30)",
+                location: "Hospet Rail Hub",
+                icon: "🚂",
+                category: "Arrival",
+                coords: [15.2681, 76.3142],
+                desc: "Your journey starts as you detrain at Hospet Junction under a cool monsoon night wind. Check into your hotel in Hospet immediately to prepare for an early morning climb.",
+                photospot: "A wide-angle landscape shot of the dark, rain-slicked rails reflecting the yellow station lights.",
+                hack: "Store heavy bags at a Hospet hotel. Rent an auto/cab for tomorrow's early run to Anjanadri.",
+                duration: "Check-in",
+                distance: "0 km",
+                attractions: [
+                    "Slick modern railway terminal platform",
+                    "Dedicated prepaid auto stands for instant transit",
+                    "Gateway highway connecting Hospet town and ancient Hampi hills"
+                ],
+                history: "Hospet (Hosapete) was established in 1520 AD by Krishna Deva Raya, the supreme ruler of the Vijayanagara Empire, in honor of his mother Nagaladevi. Originally named Nagalapura, it served as the luxurious residential hub outside the fortified capital ruins.",
+                durationValue: "30-45 minutes checking-in"
+            },
+            {
+                id: 1,
+                day: 0,
+                title: "Overnight Rest stay",
+                time: "10:30 PM (June 30)",
+                location: "Hospet Premium Stay",
+                icon: "🏨",
+                category: "Lodging",
+                coords: [15.2710, 76.3180],
+                desc: "Check-in, secure your room, dry your gear, plug in chargers, and sleep early. Your active climb of the Hanuman birthplace begins before dawn to catch the ultimate golden horizon.",
+                photospot: "Warm bedroom interiors looking out over the rain-washed streets of Hospet town.",
+                hack: "Bring noise-cancelling earplugs to rest well before the active 575 steps of Hanuman hill.",
+                duration: "Rest Hub",
+                distance: "3 km",
+                attractions: [
+                    "High-comfort heritage resting lounges",
+                    "Local rain canopy garden sitting areas",
+                    "Safety baggage lockers for early morning checkouts"
+                ],
+                history: "Modern Hospet hotels are positioned atop the historic peripheral trade pathways that supplied the Vijayanagara capital with precious metals, cotton, and spices from across international waters.",
+                durationValue: "8 hours sleep"
+            },
+            {
+                id: 2,
+                day: 1,
+                title: "Anjanadri Betta Sunrise Ascent",
+                time: "06:15 AM - 08:30 AM",
+                location: "Anjanadri Hill Top",
+                icon: "🐒",
+                category: "Spirituality",
+                coords: [15.3541, 76.4716],
+                desc: "Scale the ~575 clean granite steps of Lord Hanuman's mythical birthplace. Reaching the summit rewards you with misty, swirling 360-degree views over hundreds of boulder piles and emerald-green paddy fields below.",
+                photospot: "Stand at the edge of the granite boulder plateau pointing towards the snaking Tungabhadra river to catch the golden mists.",
+                hack: "Monkeys are highly active! Keep all camera straps wrapped tightly around your wrists, and pack water inside your zipped pockets.",
+                duration: "2.5h climb",
+                distance: "25 km",
+                attractions: [
+                    "Symmetrical 575 stone steps leading through rocky caverns",
+                    "Rock-carved Hanuman shrine situated at the absolute highest apex",
+                    "Panoramic view of the winding Tungabhadra river cutting Hampi in half"
+                ],
+                history: "According to the Ramayana epic, this mountain represents Kishkindha, the kingdom of the monkey gods. It is heralded as the exact location where Lord Hanuman was born to his mother, Anjana, after she performed penance.",
+                durationValue: "2 to 2.5 hours trek"
+            },
+            {
+                id: 3,
+                day: 1,
+                title: "Traditional South Indian Breakfast",
+                time: "08:30 AM - 09:30 AM",
+                location: "Anegundi Village Cafe",
+                icon: "☕",
+                category: "Food",
+                coords: [15.3486, 76.4880],
+                desc: "Treat your physical body to a traditional, delicious local meal: steaming idlis, crispy local medu vadas, and warm filter coffee in Anegundi village.",
+                photospot: "A flat-lay shot of golden-brown medu vadas served alongside traditional steel tumblers of foaming coffee.",
+                hack: "Anegundi village is ancient, filled with rustic charm. Sit near open courtyards to absorb early-morning rural life.",
+                duration: "1h",
+                distance: "4 km",
+                attractions: [
+                    "Ancient thatched garden courtyards",
+                    "Traditional steel filter coffee brewers",
+                    "Local organic banana-leaf plates used for eating"
+                ],
+                history: "Anegundi is significantly older than Hampi itself, dating back to pre-Vijayanagara dynasties. It was the regional administrative seed city before the kingdom expanded across the river bank.",
+                durationValue: "1 hour dining"
+            },
+            {
+                id: 4,
+                day: 1,
+                title: "Sanapur Lake Coracle Adventure",
+                time: "09:30 AM - 11:30 AM",
+                location: "Sanapur Lake Reservoir",
+                icon: "🚣",
+                category: "Adventure",
+                coords: [15.3592, 76.4533],
+                desc: "Embark on an iconic, swirling circular Coracle Boat ride on this deep azure water reservoir nestled between towering balance boulders.",
+                photospot: "A low-angle shot from inside the basket boat looking up at the towering canyon walls as you glide over mists.",
+                hack: "Wear life-jackets diligently. If active July monsoons raise currents, stick to shoreline boat drifts.",
+                duration: "2h",
+                distance: "6 km",
+                attractions: [
+                    "Circular woven bamboo basket coracle crafts",
+                    "Surrounding mega granite canyon walls",
+                    "Hidden rock jumping spots (highly restricted during rainy season)"
+                ],
+                history: "The lake acts as a prime water reservoir fed by the massive Tungabhadra irrigation system, ensuring the green paddy valleys are lush and fertile year-round.",
+                durationValue: "1.5 hours"
+            },
+            {
+                id: 5,
+                day: 1,
+                title: "Pampa Sarovar & Old Ruins Gate",
+                time: "11:30 AM - 12:30 PM",
+                location: "Pampa Sarovar Tank",
+                icon: "🌸",
+                category: "Spirituality",
+                coords: [15.3533, 76.4754],
+                desc: "Explore the legendary sacred lake mentioned in the Ramayana where Shabari waited for Lord Rama. Walk through the beautifully preserved red-and-white stone masonry gateways.",
+                photospot: "Capture the symmetry of the red steps leading into the lotus pond, framed beautifully by dense green foliage.",
+                hack: "July is a prime season for sacred lotus blooms. Arrive with dry microfibres to clean your lenses of water vapor.",
+                duration: "1h",
+                distance: "5 km",
+                attractions: [
+                    "Holy lotus-filled pond nestled between cliffs",
+                    "The cave shrine where Shabari worshipped Rama",
+                    "Red-and-white stone masonry gateways marking old checkpoints"
+                ],
+                history: "Pampa Sarovar is listed in scriptures as one of India's five sacred 'Sarovars' (lakes). In mythology, Goddess Pampa (an avatar of Parvati) performed severe penance at this spot to marry Lord Shiva.",
+                durationValue: "45 minutes"
+            },
+            {
+                id: 6,
+                day: 1,
+                title: "Reroute Transition (Bukkasagara Bridge)",
+                time: "12:30 PM - 03:00 PM",
+                location: "Bukkasagara Bypass",
+                icon: "🌉",
+                category: "Nature",
+                coords: [15.3340, 76.5165],
+                desc: "Grab lunch on the north bank, then cross safely to the south bank via the solid Bukkasagara Bridge route. This bypass guarantees continuous transit, avoiding the risky high-water monsoon ferries.",
+                photospot: "Wide panoramic view from your vehicle of the raging, swollen, beautiful Tungabhadra River.",
+                hack: "Keep your vehicle windows rolled down to feel the incredible, cool, damp river air passing over the valley.",
+                duration: "2.5h",
+                distance: "18 km",
+                attractions: [
+                    "Newly engineered high-concrete structural bridge arches",
+                    "Panoramas of the raging Tungabhadra River",
+                    "Scenic rural drive through sugar-cane plantations"
+                ],
+                history: "During monsoon seasons, historical ferries could not operate across Hampi's swirling rapids. Modern bridges provide uninterrupted vehicle passage, mirroring old stone aqueducts.",
+                durationValue: "2.5 hours transit & lunch"
+            },
+            {
+                id: 7,
+                day: 1,
+                title: "Vijaya Vittala Temple & Stone Chariot",
+                time: "03:00 PM - 05:30 PM",
+                location: "Vittala Temple Grounds",
+                icon: "🛕",
+                category: "Architecture",
+                coords: [15.3381, 76.4746],
+                desc: "Behold the legendary crowning jewel of Vijayanagara architecture: the Stone Chariot, and the musical pillars. Hire a licensed ASI guide to unlock its deep acoustic secrets.",
+                photospot: "Align the Stone Chariot with the arched stone structures in the background, utilizing a low focal length to capture its towering majesty.",
+                hack: "Battery carts can ferry you from the main gates to the temple to avoid walking in sudden rain showers.",
+                duration: "2.5h",
+                distance: "12 km",
+                attractions: [
+                    "The world-famous Stone Chariot with spinning granite wheels",
+                    "Maha Mantapa housing 56 monolithic musical pillars",
+                    "The massive King's Balance weighing archway nearby"
+                ],
+                history: "Constructed during the 15th-century reign of King Devaraya II, this temple is dedicated to Vittala (an avatar of Lord Vishnu). It stands as a monument to the apex of Dravidian craftsmanship.",
+                durationValue: "2 to 2.5 hours"
+            },
+            {
+                id: 8,
+                day: 1,
+                title: "Malyavanta Hill Monsoon Sunset",
+                time: "05:30 PM - 06:45 PM",
+                location: "Malyavanta Temple",
+                icon: "🌅",
+                category: "Nature",
+                coords: [15.3308, 76.4758],
+                desc: "Climb Malyavanta Hill to witness the setting sun behind dramatic monsoon clouds. Listen to the continuous live chanting of Rama Charita Manas inside the ancient temple.",
+                photospot: "The dramatic golden rays piercing through heavy dark clouds, casting geometric shadows across Hampi’s infinite valley.",
+                hack: "Sit safely inside the pillared temple corridors if active rain begins to fall.",
+                duration: "1h 15m",
+                distance: "3 km",
+                attractions: [
+                    "Panoramic sunset views of Hampi's temple valley",
+                    "Inside sanctum featuring rock-carved deities",
+                    "Deep stone crevice shrines where continuous chanting echoes"
+                ],
+                history: "According to legend, Lord Rama and Lakshmana spent the monsoon months on this hill during their search for Sita. Today, priests continue an uninterrupted 24-hour prayer cycle.",
+                durationValue: "1.5 hours"
+            },
+            {
+                id: 9,
+                day: 2,
+                title: "Virupaksha Temple & Ancient Bazaar",
+                time: "09:00 AM - 10:30 AM",
+                location: "Virupaksha Gopuram",
+                icon: "🐘",
+                category: "Spirituality",
+                coords: [15.3353, 76.4608],
+                desc: "Begin Day 2 at the magnificent 7th-century active temple. Marvel at the soaring 50-meter-tall gateway and receive a sacred trunk blessing from Lakshmi, the temple elephant.",
+                photospot: "Capture the towering symmetry of the main entry Gopuram against the early morning sky.",
+                hack: "Remove footwear outside. Be cautious as the historic polished granite floor tiles inside the temple are slick when damp.",
+                durationValue: "1.5 hours",
+                attractions: [
+                    "50-meter-tall majestic Eastern entrance tower",
+                    "The pinhole camera gopuram inverted shadow phenomenon",
+                    "Lakshmi, the playful temple elephant"
+                ],
+                history: "Dating back uninterruptedly to the 7th century AD, Virupaksha is Hampi's oldest active place of worship. It survived the 1565 sacking because invader armies feared the wrath of Lord Shiva."
+            },
+            {
+                id: 10,
+                day: 2,
+                title: "Hemakuta Hill & Ganesha Monoliths",
+                time: "10:30 AM - 12:00 PM",
+                location: "Hemakuta Hill Area",
+                icon: "🦁",
+                category: "Architecture",
+                coords: [15.3338, 76.4602],
+                desc: "Explore the gentle slopes of Hemakuta Hill, peppered with elegant triple-chambered shrines. View the massive monolithic Ugra Narasimha and the submerged Badavilinga.",
+                photospot: "The Badavilinga Shiva Linga, with monsoon water shimmering beautifully inside its dark stone inner sanctum.",
+                hack: "There are no security rails on some Hemakuta drops. Avoid standing too close to the slippery cliff edge.",
+                durationValue: "1.5 hours",
+                attractions: [
+                    "Sasivekalu and Kadalekalu monolithic Ganesha statues",
+                    "The towering 6.7-meter-tall Ugra Narasimha statue",
+                    "The giant Badavilinga, permanently submerged in water"
+                ],
+                history: "Hemakuta Hill was sacred before Hampi's royal era. Shrines built in the 10th century AD show unique pre-Vijayanagara styles featuring pyramid-like stone roof tiers."
+            },
+            {
+                id: 11,
+                day: 2,
+                title: "The Royal Enclosure & Lotus Mahal",
+                time: "01:15 PM - 03:45 PM",
+                location: "Lotus Mahal Grounds",
+                icon: "👑",
+                category: "Royal",
+                coords: [15.3197, 76.4674],
+                desc: "Step back into royal court life inside the symmetrical Lotus Mahal, the monumental Elephant Stables, and the perfectly tiered black schist stone Stepped Tank.",
+                photospot: "Frame the Lotus Mahal arches with the wet, vibrant green lawns in the foreground.",
+                hack: "The geometric stepped tank looks astonishingly sharp in flat, soft overcast light.",
+                durationValue: "2 to 2.5 hours",
+                attractions: [
+                    "Symmetrical, air-cooled Lotus Mahal palace arches",
+                    "11 grand domed chambers of the Elephant Stables",
+                    "Perfect geometric symmetry of the black-stone Stepped Tank"
+                ],
+                history: "This zone served as the private residential heart of Hampi's rulers. Structures like the Lotus Mahal feature a unique blend of Hindu and Islamic styles, showcasing Hampi's diverse design history."
+            },
+            {
+                id: 12,
+                day: 2,
+                title: "Queen's Bath & Final Station Run",
+                time: "03:45 PM - 05:00 PM",
+                location: "Queen's Bath Outpost",
+                icon: "👋",
+                category: "Royal",
+                coords: [15.3134, 76.4649],
+                desc: "Visit the indoor swimming bath of the royal court. Retrieve your stored bags and board your vehicle for an organized trip back to Hospet Junction to meet your 5:00 PM connections.",
+                photospot: "The Islamic-arched corridors of the Queen’s Bath showing reflections over damp brick lanes.",
+                hack: "Have your driver waiting exactly outside the Queen's Bath parking to avoid delays on your station run.",
+                durationValue: "1 hour",
+                attractions: [
+                    "Elaborate indoor royal bathing pool with arched corridors",
+                    "Balconies overlooking the pool's lotus-patterned floor",
+                    "The ancient aqueduct channel that fed the bath"
+                ],
+                history: "Built as a private recreation spot for the royal court, this bath house is surrounded by a deep moat. It shows how the empire's master architects engineered sophisticated indoor plumbing networks."
+            }
+        ];
+
+        // --- REAL HIGH-FIDELITY SCENIC ROAD ROUTING PATHS (Real GPS LatLngs) ---
+        const routes = {
+            "0-1": [
+                [15.2681, 76.3142],
+                [15.2690, 76.3150],
+                [15.2701, 76.3168],
+                [15.2710, 76.3180]
+            ],
+            "1-2": [
+                [15.2710, 76.3180],
+                [15.2780, 76.3240],
+                [15.2850, 76.3350],
+                [15.2950, 76.3580],
+                [15.3050, 76.3750],
+                [15.3120, 76.4020],
+                [15.3200, 76.4250],
+                [15.3280, 76.4650],
+                [15.3310, 76.5140],
+                [15.3340, 76.5165], // Bukkasagara Bridge crossing point
+                [15.3390, 76.5110],
+                [15.3420, 76.5050],
+                [15.3450, 76.4950],
+                [15.3486, 76.4880], // Anegundi Village
+                [15.3512, 76.4800],
+                [15.3541, 76.4716]  // Anjanadri Betta base
+            ],
+            "2-3": [
+                [15.3541, 76.4716],
+                [15.3512, 76.4800],
+                [15.3486, 76.4880]
+            ],
+            "3-4": [
+                [15.3486, 76.4880],
+                [15.3512, 76.4800],
+                [15.3541, 76.4716],
+                [15.3575, 76.4630],
+                [15.3592, 76.4533]  // Sanapur Lake road
+            ],
+            "4-5": [
+                [15.3592, 76.4533],
+                [15.3575, 76.4630],
+                [15.3541, 76.4716],
+                [15.3533, 76.4754]  // Pampa Sarovar road
+            ],
+            "5-6": [
+                [15.3533, 76.4754],
+                [15.3512, 76.4800],
+                [15.3486, 76.4880],
+                [15.3450, 76.4950],
+                [15.3420, 76.5050],
+                [15.3390, 76.5110],
+                [15.3340, 76.5165]  // Bukkasagara Bridge
+            ],
+            "6-7": [
+                [15.3340, 76.5165],
+                [15.3310, 76.5140],
+                [15.3280, 76.4950],
+                [15.3315, 76.4850],
+                [15.3350, 76.4810],
+                [15.3381, 76.4746]  // Vittala Temple gateway
+            ],
+            "7-8": [
+                [15.3381, 76.4746],
+                [15.3350, 76.4720],
+                [15.3325, 76.4735],
+                [15.3308, 76.4758]  // Malyavanta Hill path
+            ],
+            "8-9": [
+                [15.3308, 76.4758],
+                [15.3285, 76.4720],
+                [15.3270, 76.4700],
+                [15.3280, 76.4650],
+                [15.3320, 76.4625],
+                [15.3353, 76.4608]  // Virupaksha Bazaar entrance
+            ],
+            "9-10": [
+                [15.3353, 76.4608],
+                [15.3345, 76.4605],
+                [15.3338, 76.4602]  // Hemakuta pathway
+            ],
+            "10-11": [
+                [15.3338, 76.4602],
+                [15.3290, 76.4610],
+                [15.3245, 76.4625],
+                [15.3210, 76.4655],
+                [15.3197, 76.4674]  // Royal Enclosures / Lotus Mahal
+            ],
+            "11-12": [
+                [15.3197, 76.4674],
+                [15.3175, 76.4665],
+                [15.3150, 76.4652],
+                [15.3134, 76.4649]  // Queen's Bath
+            ]
+        };
+
+        // --- GLOBAL APP STATES ---
+        const visitedStatus = Array(itinerary.length).fill(false);
+        let currentDayTab = 1;
+        let activeEventId = 2; 
+        let isMonsoonRaining = true;
+        let isAutoPlaying = false;
+        let autoPlayTimer = null;
+        let map = null;
+        let avatarMarker = null;
+        let mapMarkers = [];
+        let routePolyline = null;
+        let routeShadowPolyline = null; // Glowing backdrop underlay
+        let currentMapDayFilter = 'all'; // Day filter option: 'all', 1, or 2
+
+        // Google Maps Tile Layers (Road, Satellite, Terrain) loaded dynamically into Leaflet
+        let googleRoad = null;
+        let googleSatellite = null;
+        let googleTerrain = null;
+
+        // --- DOM REFERENCE DEFINITIONS ---
+        const day1TabBtn = document.getElementById("day1TabBtn");
+        const day2TabBtn = document.getElementById("day2TabBtn");
+        const scheduleListContainer = document.getElementById("scheduleListContainer");
+        const estimatedTotal = document.getElementById("estimatedTotal");
+        const playBtn = document.getElementById("playBtn");
+        const playIcon = document.getElementById("playIcon");
+        const pauseIcon = document.getElementById("pauseIcon");
+        const playSpeedSelect = document.getElementById("playSpeed");
+        const monsoonToggle = document.getElementById("monsoonToggle");
+        const monsoonStatusText = document.getElementById("monsoonStatusText");
+        const monsoonStatusIndicator = document.getElementById("monsoonStatusIndicator");
+        const resetMapBtn = document.getElementById("resetMapBtn");
+
+        // Map Specific Day Filters
+        const mapDayAllBtn = document.getElementById("mapDayAllBtn");
+        const mapDay1Btn = document.getElementById("mapDay1Btn");
+        const mapDay2Btn = document.getElementById("mapDay2Btn");
+
+        // Google Map Type Buttons
+        const mapTypeRoadBtn = document.getElementById("mapTypeRoadBtn");
+        const mapTypeSatelliteBtn = document.getElementById("mapTypeSatelliteBtn");
+        const mapTypeTerrainBtn = document.getElementById("mapTypeTerrainBtn");
+
+        // Bottom Nav tabs
+        const navTabTimeline = document.getElementById("navTabTimeline");
+        const navTabMap = document.getElementById("navTabMap");
+        const navTabKit = document.getElementById("navTabKit");
+        const navTabAi = document.getElementById("navTabAi");
+
+        // Screen views
+        const screenTimeline = document.getElementById("screenTimeline");
+        const screenMap = document.getElementById("screenMap");
+        const screenKit = document.getElementById("screenKit");
+        const screenAi = document.getElementById("screenAi");
+
+        // Map HUD controllers
+        const hudIcon = document.getElementById("hudIcon");
+        const hudTitle = document.getElementById("hudTitle");
+        const hudTime = document.getElementById("hudTime");
+        const hudDistance = document.getElementById("hudDistance");
+        const hudDesc = document.getElementById("hudDesc");
+        const prevStopBtn = document.getElementById("prevStopBtn");
+        const nextStopBtn = document.getElementById("nextStopBtn");
+
+        // Risk indicators
+        const riskSlickness = document.getElementById("riskSlickness");
+        const riskDam = document.getElementById("riskDam");
+        const riskFerry = document.getElementById("riskFerry");
+
+        // Modals
+        const infoModal = document.getElementById("infoModal");
+        const modalTitle = document.getElementById("modalTitle");
+        const modalTime = document.getElementById("modalTime");
+        const modalDescription = document.getElementById("modalDescription");
+        const modalHack = document.getElementById("modalHack");
+        const modalPhotoSpot = document.getElementById("modalPhotoSpot");
+        const modalCategory = document.getElementById("modalCategory");
+        const modalIcon = document.getElementById("modalIcon");
+        const closeModalBtn = document.getElementById("closeModalBtn");
+        const modalActionBtn = document.getElementById("modalActionBtn");
+
+        // Modal Sub-Tabs & Panels
+        const modalTabAttractions = document.getElementById("modalTabAttractions");
+        const modalTabHistory = document.getElementById("modalTabHistory");
+        const modalTabTips = document.getElementById("modalTabTips");
+        
+        const modalPanelAttractions = document.getElementById("modalPanelAttractions");
+        const modalPanelHistory = document.getElementById("modalPanelHistory");
+        const modalPanelTips = document.getElementById("modalPanelTips");
+
+        const modalAttractionsList = document.getElementById("modalAttractionsList");
+        const modalHistoryText = document.getElementById("modalHistoryText");
+        const modalDurationText = document.getElementById("modalDurationText");
+
+        // Explicit Global Element Declarations (Safe Mode)
+        const safetyIndicator = document.getElementById("safetyIndicator");
+        const safetyStatus = document.getElementById("safetyStatus");
+
+        // --- GEMINI API INTEGRATION & CHATBOT CLIENT ---
+        const aiChatViewport = document.getElementById("aiChatViewport");
+        const aiChatPromptField = document.getElementById("aiChatPromptField");
+        const aiSendMessageBtn = document.getElementById("aiSendMessageBtn");
+        const aiTypingIndicator = document.getElementById("aiTypingIndicator");
+        const clearAiChatBtn = document.getElementById("clearAiChatBtn");
+
+        // --- UTILITY CHECKS ---
+        const isMapVisible = () => {
+            return screenMap && !screenMap.classList.contains("hidden");
+        };
+
+        // --- SCREEN NAVIGATION CONTROLLER ---
+        const switchScreenView = (activeTabId, targetScreen) => {
+            [navTabTimeline, navTabMap, navTabKit, navTabAi].forEach(tab => tab?.classList.remove("active-tab"));
+            activeTabId?.classList.add("active-tab");
+
+            [screenTimeline, screenMap, screenKit, screenAi].forEach(sc => sc?.classList.add("hidden"));
+            targetScreen?.classList.remove("hidden");
+
+            // Defer Leaflet initialization until the Map screen actually becomes visible in the viewport
+            if (targetScreen === screenMap) {
+                if (!map) {
+                    initLeafletMap();
+                    updateMapDayFilter(currentMapDayFilter);
+                }
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                        const activeItem = itinerary.find(i => i.id === activeEventId);
+                        if (activeItem) {
+                            map.setView(activeItem.coords, 14);
+                        }
+                    }
+                }, 100);
+            }
+        };
+
+        navTabTimeline?.addEventListener("click", () => switchScreenView(navTabTimeline, screenTimeline));
+        navTabMap?.addEventListener("click", () => switchScreenView(navTabMap, screenMap));
+        navTabKit?.addEventListener("click", () => switchScreenView(navTabKit, screenKit));
+        navTabAi?.addEventListener("click", () => switchScreenView(navTabAi, screenAi));
+
+        // --- CURVED ROAD GEOMETRY RESOLVER ---
+        const getRouteLatLngs = (filteredItinerary) => {
+            let latlngs = [];
+            for (let i = 0; i < filteredItinerary.length - 1; i++) {
+                const current = filteredItinerary[i];
+                const next = filteredItinerary[i + 1];
+                const key = `${current.id}-${next.id}`;
+                const segment = routes[key];
+                
+                if (segment && segment.length > 0) {
+                    // Avoid duplicating overlapping endpoints
+                    if (latlngs.length > 0) {
+                        latlngs = latlngs.concat(segment.slice(1));
+                    } else {
+                        latlngs = latlngs.concat(segment);
+                    }
+                } else {
+                    if (latlngs.length > 0) {
+                        latlngs.push(next.coords);
+                    } else {
+                        latlngs.push(current.coords, next.coords);
+                    }
+                }
+            }
+            return latlngs;
+        };
+
+        // --- LEAFLET MAP LAYER INITIALIZER (WITH GOOGLE MAP TILE INTEGRATIONS) ---
+        const initLeafletMap = () => {
+            // Setup Map context targeting the map div element
+            map = L.map('hampiMap', {
+                zoomControl: true,
+                attributionControl: false
+            });
+
+            // Set up real-world Google Maps tile servers (Road, Satellite, Terrain) without API Key requirements
+            googleRoad = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+
+            googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+
+            googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+
+            // Set Google Road as the initial active background layer
+            googleRoad.addTo(map);
+
+            // Add real markers for each itinerary landmark
+            itinerary.forEach(item => {
+                const customIcon = L.divIcon({
+                    className: 'custom-pin-icon',
+                    html: `<div class="flex flex-col items-center select-none transform -translate-y-2">
+                             <div class="text-2xl drop-shadow">${item.icon}</div>
+                             <div class="bg-zinc-950/90 text-emerald-400 border border-emerald-500/20 text-[8px] font-black px-1.5 py-0.5 rounded shadow whitespace-nowrap leading-none">${item.title.split(' ')[0]}</div>
+                           </div>`,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                });
+
+                const marker = L.marker(item.coords, { icon: customIcon }).addTo(map);
+                marker.on('click', () => {
+                    selectSpot(item.id);
+                    showDetailModal(item.id);
+                });
+                mapMarkers.push({ id: item.id, marker });
+            });
+
+            const initialRouteCoords = getRouteLatLngs(itinerary);
+
+            // Shadow underlay polyline to create a premium glow effect on streets
+            routeShadowPolyline = L.polyline(initialRouteCoords, {
+                color: '#022c22',
+                weight: 8,
+                opacity: 0.5,
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Highlight full expedition trail with glowing amber road line
+            routePolyline = L.polyline(initialRouteCoords, {
+                color: '#fbbf24',
+                weight: 4,
+                opacity: 0.8,
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Create traveler's active avatar icon
+            const avatarIcon = L.divIcon({
+                className: 'active-avatar-icon',
+                html: `<div class="relative flex items-center justify-center">
+                         <span class="absolute inline-flex h-8 w-8 rounded-full bg-orange-500/40 animate-ping"></span>
+                         <div class="w-6 h-6 rounded-full bg-orange-500 border-2 border-white shadow shadow-orange-500/50 flex items-center justify-center text-xs">🚗</div>
+                       </div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            avatarMarker = L.marker(itinerary[activeEventId].coords, { icon: avatarIcon }).addTo(map);
+        };
+
+        // --- GOOGLE MAP TILE TYPE SWITCHER ---
+        const setGoogleMapType = (type) => {
+            if (!map) return;
+
+            // Remove existing tile servers
+            if (map.hasLayer(googleRoad)) map.removeLayer(googleRoad);
+            if (map.hasLayer(googleSatellite)) map.removeLayer(googleSatellite);
+            if (map.hasLayer(googleTerrain)) map.removeLayer(googleTerrain);
+
+            // Reset selector styles visually
+            [mapTypeRoadBtn, mapTypeSatelliteBtn, mapTypeTerrainBtn].forEach(btn => {
+                if (btn) btn.className = "px-2 py-1 rounded text-[9px] font-bold text-zinc-400 hover:text-white cursor-pointer mb-1 text-left flex items-center gap-1";
+            });
+
+            // Activate chosen target layer
+            if (type === 'road') {
+                googleRoad.addTo(map);
+                if (mapTypeRoadBtn) mapTypeRoadBtn.className = "px-2 py-1 rounded text-[9px] font-bold bg-emerald-800 text-white cursor-pointer mb-1 text-left flex items-center gap-1";
+            } else if (type === 'satellite') {
+                googleSatellite.addTo(map);
+                if (mapTypeSatelliteBtn) mapTypeSatelliteBtn.className = "px-2 py-1 rounded text-[9px] font-bold bg-emerald-800 text-white cursor-pointer mb-1 text-left flex items-center gap-1";
+            } else if (type === 'terrain') {
+                googleTerrain.addTo(map);
+                if (mapTypeTerrainBtn) mapTypeTerrainBtn.className = "px-2 py-1 rounded text-[9px] font-bold bg-emerald-800 text-white cursor-pointer text-left flex items-center gap-1";
+            }
+        };
+
+        // Bind Google Maps layer toggles with safety chaining
+        mapTypeRoadBtn?.addEventListener("click", () => setGoogleMapType('road'));
+        mapTypeSatelliteBtn?.addEventListener("click", () => setGoogleMapType('satellite'));
+        mapTypeTerrainBtn?.addEventListener("click", () => setGoogleMapType('terrain'));
+
+        // --- MAP DAY-WISE FILTER CONTROLLER ---
+        const updateMapDayFilter = (filterType) => {
+            currentMapDayFilter = filterType;
+
+            // Reset tab selections visually on Map Overlays
+            [mapDayAllBtn, mapDay1Btn, mapDay2Btn].forEach(btn => {
+                if (btn) {
+                    btn.className = "flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all text-zinc-400 hover:text-white cursor-pointer";
+                }
+            });
+
+            // Set Active Day State Style
+            if (filterType === 'all') {
+                if (mapDayAllBtn) mapDayAllBtn.className = "flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all bg-emerald-800 text-white cursor-pointer";
+            } else if (filterType === 1) {
+                if (mapDay1Btn) mapDay1Btn.className = "flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all bg-emerald-800 text-white cursor-pointer";
+            } else if (filterType === 2) {
+                if (mapDay2Btn) mapDay2Btn.className = "flex-grow text-center py-1.5 rounded-lg text-[10px] font-bold transition-all bg-emerald-800 text-white cursor-pointer";
+            }
+
+            if (!map) return; // Exit if map has not been initialized yet
+
+            // Hide/Show Markers based on selected Day Groupings
+            mapMarkers.forEach(m => {
+                const item = itinerary.find(it => it.id === m.id);
+                const matches = filterType === 'all' || 
+                                (filterType === 1 && (item.day === 0 || item.day === 1)) || 
+                                (filterType === 2 && item.day === 2);
+                
+                if (matches) {
+                    if (!map.hasLayer(m.marker)) {
+                        m.marker.addTo(map);
+                    }
+                } else {
+                    if (map.hasLayer(m.marker)) {
+                        map.removeLayer(m.marker);
+                    }
+                }
+            });
+
+            // Re-draw connecting route lines matching selected days
+            const filteredItinerary = itinerary.filter(item => {
+                if (filterType === 'all') return true;
+                if (filterType === 1) return item.day === 0 || item.day === 1;
+                if (filterType === 2) return item.day === 2;
+                return true;
+            });
+            const filteredCoords = getRouteLatLngs(filteredItinerary);
+
+            if (routePolyline) {
+                routePolyline.setLatLngs(filteredCoords);
+            }
+            if (routeShadowPolyline) {
+                routeShadowPolyline.setLatLngs(filteredCoords);
+            }
+
+            // Auto fit bounds beautifully
+            if (filteredCoords.length > 0) {
+                const bounds = L.latLngBounds(filteredCoords);
+                map.fitBounds(bounds, { padding: [40, 40], animate: true, duration: 1.0 });
+            }
+
+            // Fallback sync active spot if current selection doesn't match selected day scope
+            const activeItem = itinerary.find(i => i.id === activeEventId);
+            const activeMatches = filterType === 'all' ||
+                                  (filterType === 1 && (activeItem.day === 0 || activeItem.day === 1)) ||
+                                  (filterType === 2 && activeItem.day === 2);
+
+            if (!activeMatches) {
+                if (filterType === 1) {
+                    selectSpot(2); // Focus back on Sunrise climbing
+                } else if (filterType === 2) {
+                    selectSpot(9); // Focus on Virupaksha Temple on south side
+                }
+            }
+        };
+
+        // Attach Map Day selection overlay clicks (with safety chaining)
+        mapDayAllBtn?.addEventListener("click", () => updateMapDayFilter('all'));
+        mapDay1Btn?.addEventListener("click", () => updateMapDayFilter(1));
+        mapDay2Btn?.addEventListener("click", () => updateMapDayFilter(2));
+
+        // --- TIMELINE BUILDER ---
+        const renderTimeline = () => {
+            if (!scheduleListContainer) return;
+            scheduleListContainer.innerHTML = "";
+
+            const filtered = itinerary.filter(item => {
+                return currentDayTab === 1 ? (item.day === 0 || item.day === 1) : item.day === 2;
+            });
+
+            filtered.forEach(item => {
+                const isActive = item.id === activeEventId;
+                const isVisited = visitedStatus[item.id];
+                
+                const card = document.createElement("div");
+                card.id = `timeline-card-${item.id}`;
+                card.className = `p-3.5 rounded-xl border transition-all duration-300 cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
+                    isActive 
+                    ? 'bg-emerald-950/90 border-amber-500/80 shadow-neon-gold scale-[1.01] animate-slide-up' 
+                    : 'bg-zinc-900/60 border-zinc-800/40 hover:bg-zinc-850 hover:border-zinc-700'
+                }`;
+
+                if (isActive) {
+                    const bar = document.createElement("div");
+                    bar.className = "absolute left-0 top-0 bottom-0 w-1 bg-amber-500 shadow";
+                    card.appendChild(bar);
+                }
+
+                card.innerHTML += `
+                    <div class="flex items-center justify-between gap-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg p-1 bg-emerald-800/40 rounded-lg border border-emerald-700/20">${item.icon}</span>
+                            <div>
+                                <h4 class="font-bold text-[11px] ${isActive ? 'text-white' : 'text-emerald-200'}">${item.title}</h4>
+                                <span class="text-[9px] text-amber-400 font-bold tracking-wide">${item.time}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <input type="checkbox" id="check-${item.id}" ${isVisited ? 'checked' : ''} class="w-4 h-4 accent-amber-500 rounded cursor-pointer transition">
+                            <span class="text-[8.5px] bg-emerald-950/80 border border-emerald-800 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold">${item.duration}</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[10px] text-zinc-300/90 leading-relaxed line-clamp-2">${item.desc}</p>
+                    
+                    <div class="flex items-center justify-between text-[9px] text-emerald-400/80 mt-1 border-t border-zinc-800/50 pt-1.5">
+                        <span>📍 <span class="text-white font-medium">${item.location}</span></span>
+                        <span>🚗 <span class="text-emerald-300 font-bold">${item.distance}</span></span>
+                    </div>
+                `;
+
+                // Clicking on a card selects the spot AND expands the details
+                card.addEventListener("click", (e) => {
+                    if (e.target.type === "checkbox") return; 
+                    selectSpot(item.id);
+                    showDetailModal(item.id);
+                });
+
+                const checkbox = card.querySelector(`#check-${item.id}`);
+                checkbox?.addEventListener("change", (e) => {
+                    visitedStatus[item.id] = e.target.checked;
+                    updateExplorationBadge();
+                });
+
+                scheduleListContainer.appendChild(card);
+            });
+        };
+
+        const selectSpot = (id) => {
+            activeEventId = id;
+            const item = itinerary.find(i => i.id === id);
+            
+            // Auto switch slider states
+            if (item.day === 2 && currentDayTab === 1) {
+                switchTab(2, false);
+            } else if ((item.day === 0 || item.day === 1) && currentDayTab === 2) {
+                switchTab(1, false);
+            } else {
+                renderTimeline();
+            }
+
+            // Smooth centering scrolling effect for the list container
+            setTimeout(() => {
+                const el = document.getElementById(`timeline-card-${id}`);
+                const container = scheduleListContainer;
+                if (el && container) {
+                    const containerRect = container.getBoundingClientRect();
+                    const elRect = el.getBoundingClientRect();
+                    const relativeTop = elRect.top - containerRect.top + container.scrollTop;
+                    
+                    container.scrollTo({
+                        top: relativeTop - (containerRect.height / 2) + (elRect.height / 2),
+                        behavior: 'smooth'
+                    });
+                }
+            }, 120);
+
+            // Update Map HUD elements
+            if (hudIcon) hudIcon.innerText = item.icon;
+            if (hudTitle) hudTitle.innerText = item.title;
+            if (hudTime) hudTime.innerText = item.time;
+            if (hudDistance) hudDistance.innerText = item.distance;
+            if (hudDesc) hudDesc.innerText = item.desc;
+
+            // Pan and update real traveler active location smoothly
+            if (map && avatarMarker) {
+                avatarMarker.setLatLng(item.coords);
+                if (isMapVisible()) {
+                    map.flyTo(item.coords, 14, {
+                        animate: true,
+                        duration: 1.2
+                    });
+                }
+            }
+        };
+
+        const switchTab = (dayNum, autoSelectFirstSpot = true) => {
+            currentDayTab = dayNum;
+            if (dayNum === 1) {
+                if (day1TabBtn) day1TabBtn.className = "flex-grow py-2 rounded-lg text-xs font-bold transition-all duration-300 bg-emerald-800 text-white shadow-md text-center cursor-pointer";
+                if (day2TabBtn) day2TabBtn.className = "flex-grow py-2 rounded-lg text-xs font-bold transition text-zinc-400 hover:text-white text-center cursor-pointer";
+                if (autoSelectFirstSpot) selectSpot(2); // Focus Sunrise climb on Day 1
+            } else {
+                if (day2TabBtn) day2TabBtn.className = "flex-grow py-2 rounded-lg text-xs font-bold transition-all duration-300 bg-emerald-800 text-white shadow-md text-center cursor-pointer";
+                if (day1TabBtn) day1TabBtn.className = "flex-grow py-2 rounded-lg text-xs font-bold transition text-zinc-400 hover:text-white text-center cursor-pointer";
+                if (autoSelectFirstSpot) selectSpot(9); // Focus Virupaksha Temple on Day 2
+            }
+            renderTimeline();
+        };
+
+        day1TabBtn?.addEventListener("click", () => switchTab(1));
+        day2TabBtn?.addEventListener("click", () => switchTab(2));
+
+        const updateExplorationBadge = () => {
+            const count = visitedStatus.filter(Boolean).length;
+            const explorationProgressLabel = document.getElementById("explorationProgressLabel");
+            if (explorationProgressLabel) {
+                explorationProgressLabel.innerText = `${count} / ${itinerary.length} STOPS`;
+            }
+            
+            // Recalculate packing lists details
+            const checkBoxes = document.querySelectorAll(".pack-item");
+            const checkedBoxes = document.querySelectorAll(".pack-item:checked");
+            const pct = checkBoxes.length ? Math.round((checkedBoxes.length / checkBoxes.length) * 100) : 0;
+            const packingWheelText = document.getElementById("packingWheelText");
+            if (packingWheelText) {
+                packingWheelText.innerText = `${pct}% Done`;
+            }
+        };
+
+        // Auto Travel HUD progress controls
+        const progressSpot = (direction) => {
+            let targetId = activeEventId + direction;
+            if (targetId >= itinerary.length) targetId = 0;
+            if (targetId < 0) targetId = itinerary.length - 1;
+            selectSpot(targetId);
+        };
+
+        prevStopBtn?.addEventListener("click", () => progressSpot(-1));
+        nextStopBtn?.addEventListener("click", () => progressSpot(1));
+
+        const toggleAutoPlay = () => {
+            if (isAutoPlaying) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        };
+
+        const startAutoPlay = () => {
+            isAutoPlaying = true;
+            playIcon?.classList.add("hidden");
+            pauseIcon?.classList.remove("hidden");
+            playBtn?.classList.replace("bg-amber-500", "bg-red-500");
+            
+            const delay = parseInt(playSpeedSelect?.value || "2500");
+            autoPlayTimer = setInterval(() => {
+                let nextId = activeEventId + 1;
+                if (nextId >= itinerary.length) {
+                    nextId = 0; 
+                }
+                selectSpot(nextId);
+                showDetailModal(nextId); // Expand details on autoplay
+            }, delay);
+        };
+
+        const stopAutoPlay = () => {
+            isAutoPlaying = false;
+            playIcon?.classList.remove("hidden");
+            pauseIcon?.classList.add("hidden");
+            playBtn?.classList.replace("bg-red-500", "bg-amber-500");
+            clearInterval(autoPlayTimer);
+        };
+
+        // --- INTERACTIVE DETAIL POPUPS (WITH TAB NAVIGATION) ---
+        const switchModalTab = (activeTabBtn, targetPanelId) => {
+            // Remove active style from tabs
+            [modalTabAttractions, modalTabHistory, modalTabTips].forEach(btn => {
+                if (btn) btn.className = "flex-grow text-center py-2 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer";
+            });
+            if (activeTabBtn) activeTabBtn.className = "flex-grow text-center py-2 rounded-lg bg-emerald-800 text-white transition cursor-pointer";
+
+            // Toggle panels
+            [modalPanelAttractions, modalPanelHistory, modalPanelTips].forEach(panel => panel?.classList.add("hidden"));
+            document.getElementById(targetPanelId)?.classList.remove("hidden");
+        };
+
+        modalTabAttractions?.addEventListener("click", () => switchModalTab(modalTabAttractions, "modalPanelAttractions"));
+        modalTabHistory?.addEventListener("click", () => switchModalTab(modalTabHistory, "modalPanelHistory"));
+        modalTabTips?.addEventListener("click", () => switchModalTab(modalTabTips, "modalPanelTips"));
+
+        const showDetailModal = (id) => {
+            const item = itinerary.find(i => i.id === id);
+            if (!item) return;
+
+            // Reset modal tabs to first tab (Attractions) on load
+            switchModalTab(modalTabAttractions, "modalPanelAttractions");
+
+            if (modalIcon) modalIcon.innerText = item.icon;
+            if (modalTitle) modalTitle.innerText = item.title;
+            if (modalCategory) modalCategory.innerText = item.category;
+            if (modalTime) modalTime.innerText = `${item.location} • ${item.time}`;
+            if (modalDescription) modalDescription.innerText = item.desc;
+            if (modalPhotoSpot) modalPhotoSpot.innerText = item.photospot;
+            if (modalHack) modalHack.innerText = item.hack;
+
+            // Populating dynamic list data
+            if (modalAttractionsList) {
+                modalAttractionsList.innerHTML = "";
+                (item.attractions || ["Key architectural marvels"]).forEach(att => {
+                    const li = document.createElement("li");
+                    li.className = "text-zinc-300";
+                    li.innerText = att;
+                    modalAttractionsList.appendChild(li);
+                });
+            }
+
+            if (modalHistoryText) modalHistoryText.innerText = item.history || "No historical chronicles uploaded yet.";
+            if (modalDurationText) modalDurationText.innerText = `⏱️ Recommended Duration: ${item.durationValue || "1.5 hours"}`;
+
+            // Hardware-accelerated CSS transition from display: none (hidden)
+            if (infoModal) {
+                infoModal.classList.remove("hidden");
+                void infoModal.offsetHeight; // Forces browser reflow
+                infoModal.classList.replace("translate-y-full", "translate-y-0");
+            }
+        };
+
+        const hideDetailModal = () => {
+            if (infoModal) {
+                infoModal.classList.replace("translate-y-0", "translate-y-full");
+                setTimeout(() => {
+                    infoModal.classList.add("hidden");
+                }, 300);
+            }
+        };
+
+        // --- BUDGET MATH ---
+        const updateBudgetSummary = () => {
+            const transport = parseInt(document.getElementById("calcTransport")?.value || "0");
+            const dining = parseInt(document.getElementById("calcDining")?.value || "0");
+            const total = transport + dining;
+            if (estimatedTotal) {
+                estimatedTotal.innerText = `₹${total.toLocaleString("en-IN")}`;
+            }
+        };
+        document.getElementById("calcTransport")?.addEventListener("change", updateBudgetSummary);
+        document.getElementById("calcDining")?.addEventListener("change", updateBudgetSummary);
+
+        // --- GEMINI API ADAPTER (WITH RETRY & EXPONENTIAL BACKOFF) ---
+        async function callGemini(prompt, systemInstruction = "") {
+            const apiKey = ""; // Strict rule: must be an empty string
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ "google_search": {} }] // Enabled search grounding
+            };
+            if (systemInstruction) {
+                payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+            }
+
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const result = await response.json();
+                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                        const sources = result.candidates?.[0]?.groundingMetadata?.groundingAttributions?.map(a => ({
+                            uri: a.web?.uri,
+                            title: a.web?.title
+                        })) || [];
+                        return { text, sources };
+                    }
+                } catch (e) {
+                    // Fail silently, retry with exponential backoff
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+            throw new Error("Unable to reach the Hampi AI Guide after multiple attempts. Please check your network connection.");
+        }
+
+        // --- GEMINI CHATBOT CONTROLLER LOGIC ---
+        const appendChatMessageBubble = (sender, text, isAi = false, sources = []) => {
+            const container = document.createElement("div");
+            container.className = "flex gap-2.5 items-start animate-slide-up";
+
+            const iconClass = isAi ? "bg-emerald-950 border-emerald-900" : "bg-amber-950 border-amber-900 text-amber-400";
+            const iconContent = isAi ? "✨" : "👤";
+            
+            const bubbleBgClass = isAi ? "bg-zinc-900/60 border-zinc-800/80" : "bg-emerald-950/40 border-emerald-900/40 self-end";
+            
+            let sourcesMarkup = "";
+            if (sources.length > 0) {
+                sourcesMarkup = `
+                    <div class="mt-2.5 pt-2 border-t border-zinc-800/50 text-[10px] text-zinc-400">
+                        <span class="font-bold block mb-1">🔗 Search Grounding Citations:</span>
+                        <div class="flex flex-col gap-1">
+                            ${sources.map(s => `<a href="${s.uri}" target="_blank" rel="noopener" class="text-amber-400 hover:underline flex items-center gap-1">🗺️ ${s.title || s.uri}</a>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="p-1.5 rounded-lg text-sm shrink-0 border ${iconClass} select-none">${iconContent}</div>
+                <div class="border ${bubbleBgClass} rounded-r-xl rounded-bl-xl p-3 max-w-[85%] text-zinc-200 leading-relaxed shadow-sm">
+                    <span class="font-bold text-[10px] uppercase text-zinc-500 block mb-1">${sender}</span>
+                    <p class="whitespace-pre-wrap">${text}</p>
+                    ${sourcesMarkup}
+                </div>
+            `;
+            
+            aiChatViewport.appendChild(container);
+            aiChatViewport.scrollTop = aiChatViewport.scrollHeight;
+        };
+
+        const handleAiMessageSubmission = async (customPrompt = "") => {
+            const promptText = customPrompt || aiChatPromptField.value.trim();
+            if (!promptText) return;
+
+            if (!customPrompt) {
+                aiChatPromptField.value = "";
+            }
+
+            appendChatMessageBubble("Traveler", promptText, false);
+            aiTypingIndicator.classList.remove("hidden");
+            aiChatViewport.scrollTop = aiChatViewport.scrollHeight;
+
+            const activeItem = itinerary.find(i => i.id === activeEventId);
+            const systemPrompt = `You are the Hampi AI Guru Travel Assistant. You are guiding travelers through the ancient ruins of Hampi in Karnataka, India during the wet monsoon month of July. Currently, the traveler is focusing on: ${activeItem.title} located at (${activeItem.coords.join(', ')}). Answer their inquiries concisely, focusing on mythology, history, architectural design, and practical tips like slick granite safety. Cite sources wherever search grounding is active. Do not use markdown titles larger than bold text. Use sparkle emojis ✨ in recommendations.`;
+
+            try {
+                const response = await callGemini(promptText, systemPrompt);
+                aiTypingIndicator.classList.add("hidden");
+                appendChatMessageBubble("Hampi Guru", response.text, true, response.sources);
+            } catch (err) {
+                aiTypingIndicator.classList.add("hidden");
+                appendChatMessageBubble("System Error", err.message, true);
+            }
+        };
+
+        // Message Event Listeners
+        aiSendMessageBtn?.addEventListener("click", () => handleAiMessageSubmission());
+        aiChatPromptField?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleAiMessageSubmission();
+        });
+
+        // Prompt Pills Event delegation
+        document.querySelectorAll(".ai-prompt-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                const prompt = pill.getAttribute("data-prompt");
+                handleAiMessageSubmission(prompt);
+            });
+        });
+
+        // Clear Chat viewport handler
+        clearAiChatBtn?.addEventListener("click", () => {
+            aiChatViewport.innerHTML = `
+                <div class="flex gap-2.5 items-start">
+                    <div class="p-1.5 bg-emerald-950 rounded-lg text-sm shrink-0 border border-emerald-900 select-none">✨</div>
+                    <div class="bg-zinc-900/60 border-zinc-800/80 rounded-r-xl rounded-bl-xl p-3 max-w-[85%] text-zinc-200 leading-relaxed shadow-sm">
+                        Chat logs cleared. Ask me any question or tap a quick-pill to consult Hampi's records!
+                    </div>
+                </div>
+            `;
+        });
+
+        // --- BOOTSTRAP ADAPTERS ---
+        window.addEventListener("load", () => {
+            renderTimeline();
+            selectSpot(2); // Begin at Sunrise climb on July 1st Morning
+            updateBudgetSummary();
+            updateExplorationBadge();
+        });
+
+        // Packing progress update attachments
+        document.querySelectorAll(".pack-item").forEach(item => {
+            item?.addEventListener("change", updateExplorationBadge);
+        });
+
+        playBtn?.addEventListener("click", toggleAutoPlay);
+        playSpeedSelect?.addEventListener("change", () => {
+            if (isAutoPlaying) {
+                stopAutoPlay();
+                startAutoPlay();
+            }
+        });
+
+        monsoonToggle?.addEventListener("click", () => {
+            isMonsoonRaining = !isMonsoonRaining;
+            const indicatorDot = document.getElementById("rainStatusPulse");
+            const indicatorLabel = document.getElementById("rainStatusLabel");
+
+            if (isMonsoonRaining) {
+                if (monsoonStatusText) monsoonStatusText.innerText = "ON";
+                monsoonStatusIndicator?.classList.replace("bg-emerald-500", "bg-blue-400");
+                monsoonStatusIndicator?.classList.add("animate-pulse");
+
+                // Safety overlay changes
+                safetyIndicator?.classList.replace("bg-emerald-400", "bg-amber-400");
+                if (safetyStatus) safetyStatus.innerText = "Ferry: CLOSED (Bukkasagara Bridge active)";
+
+                // Risk dashboard panel sync
+                if (indicatorDot) indicatorDot.className = "w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse";
+                if (indicatorLabel) indicatorLabel.innerText = "Simulated Rain: ON";
+                if (riskSlickness) {
+                    riskSlickness.innerText = "HIGH (8/10)";
+                    riskSlickness.className = "font-extrabold text-xs text-amber-400 block mt-1";
+                }
+                if (riskFerry) {
+                    riskFerry.innerText = "CLOSED";
+                    riskFerry.className = "font-extrabold text-xs text-red-400 block mt-1";
+                }
+            } else {
+                if (monsoonStatusText) monsoonStatusText.innerText = "OFF";
+                monsoonStatusIndicator?.classList.replace("bg-blue-400", "bg-emerald-500");
+                monsoonStatusIndicator?.classList.remove("animate-pulse");
+
+                // Safety overlay changes
+                safetyIndicator?.classList.replace("bg-amber-400", "bg-emerald-400");
+                if (safetyStatus) safetyStatus.innerText = "Ferry: ACTIVE (Water conditions permitting)";
+
+                // Risk dashboard panel sync
+                if (indicatorDot) indicatorDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+                if (indicatorLabel) indicatorLabel.innerText = "Simulated Rain: OFF";
+                if (riskSlickness) {
+                    riskSlickness.innerText = "LOW (3/10)";
+                    riskSlickness.className = "font-extrabold text-xs text-emerald-400 block mt-1";
+                }
+                if (riskFerry) {
+                    riskFerry.innerText = "OPEN";
+                    riskFerry.className = "font-extrabold text-xs text-emerald-400 block mt-1";
+                }
+            }
+        });
+
+        resetMapBtn?.addEventListener("click", () => selectSpot(0));
+        closeModalBtn?.addEventListener("click", hideDetailModal);
+        modalActionBtn?.addEventListener("click", hideDetailModal);
+        infoModal?.addEventListener("click", (e) => {
+            if (e.target === infoModal) hideDetailModal();
+        });
+
+    </script>
+</body>
+</html>
